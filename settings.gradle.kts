@@ -1,6 +1,5 @@
-@file:Suppress("UnstableApiUsage")
-
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google()
         mavenCentral()
@@ -14,6 +13,10 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+}
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention").version("1.0.0")
 }
 
 rootProject.name = "Monitor"

@@ -1,37 +1,63 @@
 package github.leavesczy.monitor.internal.db
 
 import androidx.paging.PagingSource
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.Query
-import androidx.room.Update
+import androidx.room3.Dao
+import androidx.room3.DaoReturnTypeConverters
+import androidx.room3.Insert
+import androidx.room3.Query
+import androidx.room3.Transaction
+import androidx.room3.Update
+import androidx.room3.paging.PagingSourceDaoReturnTypeConverter
 import kotlinx.coroutines.flow.Flow
 
-/**
- * @Author: leavesCZY
- * @Date: 2020/11/14 16:14
- * @Desc:
- */
 @Dao
+@DaoReturnTypeConverters(PagingSourceDaoReturnTypeConverter::class)
 internal interface MonitorDao {
 
     @Insert
-    fun insertMonitor(monitor: Monitor): Long
+    fun insertRecord(record: MonitorRecord): Long
 
     @Update
-    fun updateMonitor(monitor: Monitor)
+    fun updateRecord(record: MonitorRecord)
 
-    @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} where id =:id")
-    suspend fun queryMonitor(id: Long): Monitor
+    @Insert
+    fun insertPayload(payload: MonitorPayload)
 
-    @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} where id =:id")
-    fun queryMonitorAsFlow(id: Long): Flow<Monitor>
+    @Update
+    fun updatePayload(payload: MonitorPayload)
 
-    @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} order by id desc limit :limit")
-    fun queryMonitors(limit: Int): Flow<List<Monitor>>
+    @Transaction
+    fun insertPending(record: MonitorRecord, payload: MonitorPayload): Long {
+        val id = insertRecord(record = record)
+        insertPayload(payload = payload.copy(recordId = id))
+        return id
+    }
+
+    @Transaction
+    fun completeRecord(record: MonitorRecord, payload: MonitorPayload) {
+        updateRecord(record = record)
+        updatePayload(payload = payload)
+    }
+
+    @Transaction
+    @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} where id = :id")
+    suspend fun queryRecordWithPayload(id: Long): MonitorRecordWithPayload
+
+    @Transaction
+    @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} where id = :id")
+    fun queryRecordWithPayloadAsFlow(id: Long): Flow<MonitorRecordWithPayload>
+
+    @Query(
+        """
+        select * from ${MonitorDatabase.MONITOR_TABLE_NAME}
+        order by id desc
+        limit :limit
+        """
+    )
+    fun queryRecords(limit: Int): Flow<List<MonitorRecord>>
 
     @Query("select * from ${MonitorDatabase.MONITOR_TABLE_NAME} order by id desc")
-    fun queryMonitors(): PagingSource<Int, Monitor>
+    fun queryRecords(): PagingSource<Int, MonitorRecord>
 
     @Query("delete from ${MonitorDatabase.MONITOR_TABLE_NAME}")
     suspend fun deleteAll()
